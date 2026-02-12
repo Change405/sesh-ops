@@ -1,18 +1,30 @@
-# Hetzner Cloud Configuration
-variable "hcloud_token" {
-  description = "Hetzner Cloud API token (set via HCLOUD_TOKEN environment variable)"
-  type        = string
-  sensitive   = true
-
-  validation {
-    condition     = length(var.hcloud_token) > 0
-    error_message = "Hetzner Cloud token must be provided via TF_VAR_hcloud_token or HCLOUD_TOKEN environment variable"
-  }
+# Server Configuration
+variable "server_names" {
+  description = "List of server names to create"
+  type        = list(string)
+  default     = ["session-node-1"]
 }
 
-# Future variables for server configuration will be added here:
-# - server_type (e.g., cx21, cx31)
-# - server_count
-# - server_location (e.g., nbg1, fsn1, hel1)
-# - ssh_key_name
-# - firewall_rules
+variable "server_type" {
+  description = "Hetzner server type"
+  type        = string
+  default     = "cx33"
+}
+
+variable "server_location" {
+  description = "Hetzner datacenter location"
+  type        = string
+  default     = "nbg1"
+}
+
+variable "server_image" {
+  description = "OS image for servers"
+  type        = string
+  default     = "ubuntu-24.04"
+}
+
+variable "ssh_public_key_path" {
+  description = "Path to SSH public key"
+  type        = string
+  default     = "../session_node_key.pub"
+}

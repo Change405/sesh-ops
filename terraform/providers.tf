@@ -5,5 +5,5 @@ provider "aws" {
 }
 
 provider "hcloud" {
-  token = var.hcloud_token
+  # Token is read from HCLOUD_TOKEN environment variable
 }

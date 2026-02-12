@@ -2,16 +2,16 @@
 # Copy this file to terraform.tfvars and customize as needed
 # Note: terraform.tfvars is gitignored and should never be committed
 
-# IMPORTANT: Hetzner Cloud Token
-# DO NOT set hcloud_token in this file for security reasons
-# Instead, export it as an environment variable before running Terraform:
-#
-#   export HCLOUD_TOKEN=$(op read "op://Private/Hetzner/API Key")
-#
-# This retrieves the token from 1Password CLI, which requires biometric
-# authentication and ensures the token is never written to disk
+# Server Configuration
+# Uncomment and modify the variables you want to override
 
-# Future server configuration variables will be added here:
-# server_type     = "cx21"
-# server_count    = 1
+# List of server names to create
+# server_names = ["session-node-1", "session-node-2", "session-node-3"]
+
+# Server specifications (defaults shown)
+# server_type     = "cx33"
 # server_location = "nbg1"
+# server_image    = "ubuntu-24.04"
+
+# SSH key path (defaults shown)
+# ssh_public_key_path = "../session_node_key.pub"
