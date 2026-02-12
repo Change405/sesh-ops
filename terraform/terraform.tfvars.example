@@ -1,0 +1,17 @@
+# Example Terraform Variables File
+# Copy this file to terraform.tfvars and customize as needed
+# Note: terraform.tfvars is gitignored and should never be committed
+
+# IMPORTANT: Hetzner Cloud Token
+# DO NOT set hcloud_token in this file for security reasons
+# Instead, export it as an environment variable before running Terraform:
+#
+#   export HCLOUD_TOKEN=$(op read "op://Private/Hetzner/API Key")
+#
+# This retrieves the token from 1Password CLI, which requires biometric
+# authentication and ensures the token is never written to disk
+
+# Future server configuration variables will be added here:
+# server_type     = "cx21"
+# server_count    = 1
+# server_location = "nbg1"
