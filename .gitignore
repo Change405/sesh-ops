@@ -1,3 +1,7 @@
+# ============================================================================
+# Terraform
+# ============================================================================
+
 # Local .terraform directories
 .terraform/
 
@@ -29,9 +33,75 @@ override.tf.json
 # Include override files you do wish to add to version control using negated pattern
 # !example_override.tf
 
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-# example: *tfplan*
+# Ignore tfplan files (plan output of command: terraform plan -out=tfplan)
+*.tfplan
+*tfplan*
 
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# ============================================================================
+# Ansible
+# ============================================================================
+
+# Retry files created when playbook execution fails
+*.retry
+
+# Ansible cache and temporary files
+.ansible/
+.ansible_cache/
+
+# Vault password files (should never be committed)
+vault-password.txt
+.vault_pass
+.vault_password
+*vault-pass*
+
+# Local inventory files that may contain sensitive host information
+inventory/local
+hosts.local
+
+# Ansible collections directory (if using requirements.yml, these are downloaded)
+collections/
+
+# Ansible roles directory (if using requirements.yml, these are downloaded)
+roles/*/
+!roles/.gitkeep
+
+# ============================================================================
+# Miscellaneous
+# ============================================================================
+
+# JetBrains IDEs (IntelliJ, PyCharm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# macOS thumbnails
+._*
+
+# macOS directories
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.*.swp
