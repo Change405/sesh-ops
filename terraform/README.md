@@ -26,7 +26,10 @@ Before running any Terraform commands:
 # 1. Authenticate to AWS (12 hour session)
 aws login
 
-# 2. Export Hetzner token from 1Password
+# 2. Export AWS credentials to environment (required for Terraform)
+eval $(aws configure export-credentials --format env)
+
+# 3. Export Hetzner token from 1Password
 export HCLOUD_TOKEN=$(op read "op://Private/Hetzner/API Key")
 ```
 
