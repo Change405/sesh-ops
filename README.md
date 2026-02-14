@@ -76,16 +76,44 @@ cd ../ansible
 ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/DRPC/API URL')"
 ```
 
-## Node Registration
+## Node Registration & Staking
 
-After deployment, for each node:
+### Prerequisites
+- 25,000 SESH per node (full solo stake) or minimum 6,250 SESH (25%) as operator with contributors filling the rest
+- ETH wallet on Arbitrum One holding your SESH tokens
+- Node fully synced (`sudo oxend status` shows no "syncing")
+
+### Register the Node
+
+SSH to the node and run:
 
 ```bash
 ssh session_change@<node-ip>
-sudo oxend register 0xB0dbd4F71D3635D3F3bd1c39d4f87bd0905Fa392
+sudo oxend register 0xYourEthAddress
 ```
 
-Open the staking URL at https://stake.getsession.org/ and complete within **9-12 minutes**.
+This submits registration info to https://stake.getsession.org/ and prints a URL.
+
+### Complete the Stake
+
+1. Open the registration URL (valid for **9-12 minutes**)
+2. Connect the wallet that holds your SESH
+3. Approve the staking transaction
+4. Wait for 5 confirmations (~7 minutes)
+
+### Verify Registration
+
+```bash
+sudo oxend status
+```
+
+Look for `active` — the node is now earning rewards.
+
+### Deregistration & Penalties
+- Nodes start with 60 blocks (~2 hrs) of credit, earn 24 blocks/day, max 1,440 blocks (~48 hrs)
+- Going offline depletes credit — if credit hits zero the node is deregistered
+- Deregistered nodes have their stake **locked for 30 days**
+- Broadcasting from multiple IPs within 24 hours triggers reward penalties — always deregister before moving a node
 
 ## Detailed Documentation
 
