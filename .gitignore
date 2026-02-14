@@ -47,6 +47,7 @@ terraform.rc
 
 # Retry files created when playbook execution fails
 *.retry
+ansible/*.retry
 
 # Ansible cache and temporary files
 .ansible/
@@ -61,6 +62,10 @@ vault-password.txt
 # Local inventory files that may contain sensitive host information
 inventory/local
 hosts.local
+ansible/inventory/hosts.local.yml
+
+# Deployment detail files (contain IP addresses and configuration)
+ansible/deployment-*.txt
 
 # Ansible collections directory (if using requirements.yml, these are downloaded)
 collections/

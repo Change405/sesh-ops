@@ -1,0 +1,97 @@
+---
+# Common role - System preparation
+# This role prepares the system with updates, essential packages, and
+# automatic security updates.
+#
+# Note: Admin user creation is handled by bootstrap.yml playbook
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  tags:
+    - system
+    - packages
+
+- name: Upgrade all packages to latest version
+  apt:
+    upgrade: dist
+    autoremove: yes
+    autoclean: yes
+  tags:
+    - system
+    - packages
+
+- name: Install essential packages
+  apt:
+    name: "{{ essential_packages }}"
+    state: present
+    update_cache: yes
+  tags:
+    - system
+    - packages
+
+- name: Set system timezone
+  timezone:
+    name: "{{ system_timezone }}"
+  tags:
+    - system
+
+# ============================================================================
+# Automatic Updates Configuration
+# ============================================================================
+
+- name: Configure unattended-upgrades
+  template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: unattended_upgrades_enabled | bool
+  tags:
+    - system
+    - updates
+
+- name: Configure auto-upgrades
+  template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: unattended_upgrades_enabled | bool
+  tags:
+    - system
+    - updates
+
+- name: Enable and start unattended-upgrades service
+  systemd:
+    name: unattended-upgrades
+    state: started
+    enabled: yes
+  when: unattended_upgrades_enabled | bool
+  tags:
+    - system
+    - updates
+
+- name: Display automatic updates status
+  debug:
+    msg:
+      - "Automatic security updates: {{ 'enabled' if unattended_upgrades_enabled else 'disabled' }}"
+      - "Automatic reboot: {{ 'enabled at ' + unattended_upgrades_automatic_reboot_time if unattended_upgrades_automatic_reboot else 'disabled' }}"
+      - "Auto-remove unused packages: {{ 'enabled' if unattended_upgrades_autoremove else 'disabled' }}"
+  when: unattended_upgrades_enabled | bool
+  tags:
+    - system
+    - updates
+
+- name: Display system preparation status
+  debug:
+    msg:
+      - "✓ System packages updated"
+      - "✓ Essential packages installed"
+      - "✓ Timezone configured: {{ system_timezone }}"
+      - "✓ Automatic security updates: {{ 'enabled' if unattended_upgrades_enabled else 'disabled' }}"
+  tags:
+    - system

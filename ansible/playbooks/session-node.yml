@@ -1,0 +1,121 @@
+---
+# Session node deployment playbook
+# This playbook installs and configures ONLY the Session node software.
+# It assumes security hardening has already been completed.
+#
+# Prerequisites:
+#   - Security hardening completed (run security.yml first)
+#   - Admin user created
+#   - SSH access as admin user works
+#
+# Required variables:
+#   - l2_provider_url: Arbitrum One RPC endpoint
+#   - operator_eth_address: Ethereum address for node registration
+
+- name: Deploy Session Node Software
+  hosts: session_nodes
+  gather_facts: yes
+  become: yes
+
+  pre_tasks:
+    - name: Display deployment information
+      debug:
+        msg:
+          - "=== Session Node Software Deployment ==="
+          - "Target hosts: {{ ansible_play_hosts | length }}"
+          - "Operator ETH address: {{ operator_eth_address | default('NOT PROVIDED') }}"
+          - "L2 Provider configured: {{ 'yes' if l2_provider_url is defined else 'NO - REQUIRED' }}"
+      tags:
+        - always
+
+    - name: Validate required variables are provided
+      assert:
+        that:
+          - l2_provider_url is defined
+          - l2_provider_url | length > 0
+          - operator_eth_address is defined
+          - operator_eth_address | length > 0
+          - operator_eth_address is match('^0x[a-fA-F0-9]{40}$')
+        fail_msg: |
+          Required variables missing or invalid!
+
+          You must provide:
+            -e "l2_provider_url=https://your-rpc-provider.example/v1/your-key"
+            -e "operator_eth_address=0xYourEthereumAddress"
+
+          Example:
+            ansible-playbook playbooks/session-node.yml \
+              -e "l2_provider_url=https://arb-mainnet.g.alchemy.com/v2/your-key" \
+              -e "operator_eth_address=0x1234567890123456789012345678901234567890"
+        success_msg: "✓ All required variables validated"
+      tags:
+        - always
+        - validation
+
+    - name: Verify admin user exists
+      user:
+        name: "{{ admin_user }}"
+        state: present
+      check_mode: yes
+      register: admin_user_check
+      failed_when: false
+      tags:
+        - validation
+
+    - name: Check admin user creation
+      assert:
+        that:
+          - not admin_user_check.changed
+        fail_msg: |
+          Admin user '{{ admin_user }}' does not exist!
+          Run the security.yml playbook first to set up the system.
+        success_msg: "✓ Admin user exists"
+      tags:
+        - validation
+
+  roles:
+    - role: session-node
+      tags:
+        - session
+        - node
+
+  post_tasks:
+    - name: Display registration instructions
+      debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║       Session Node Software Deployment Complete!              ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Next Steps - Node Registration:"
+          - ""
+          - "For each node, you need to register it on the Session network:"
+          - ""
+          - "1. SSH to the node:"
+          - "   ssh {{ admin_user }}@{{ ansible_host }}"
+          - ""
+          - "2. Run the registration command:"
+          - "   sudo oxend register {{ operator_eth_address }}"
+          - ""
+          - "3. Copy the registration URL that appears (starts with https://stake.getsession.org/)"
+          - ""
+          - "4. Open the URL in your browser and complete the staking process"
+          - "   ⚠️  IMPORTANT: You have 9-12 minutes to complete staking!"
+          - ""
+          - "5. Verify node status:"
+          - "   sudo oxend status"
+          - "   sudo oxend print_sn_status"
+          - ""
+          - "6. Monitor logs:"
+          - "   sudo journalctl -u oxen-node -f"
+          - ""
+          - "Additional Information:"
+          - "  - Test QUIC connectivity: https://quictest.oxen.io/"
+          - "  - Session documentation: https://docs.getsession.org/"
+          - "  - Node configuration: {{ oxen_config_file }}"
+          - "  - Log file: {{ oxen_log_file }}"
+          - ""
+      run_once: yes
+      tags:
+        - always

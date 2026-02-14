@@ -1,0 +1,81 @@
+---
+# Security Hardening Playbook for Session Service Nodes
+# This playbook applies security hardening measures:
+#   1. System preparation (common role)
+#   2. Security hardening with SSH, UFW, and fail2ban (security role)
+#
+# Prerequisites: Run bootstrap.yml first to ensure admin user exists
+
+- name: Security Hardening for Session Service Nodes
+  hosts: session_nodes
+  gather_facts: yes
+  become: yes
+
+  pre_tasks:
+    - name: Display security hardening information
+      debug:
+        msg:
+          - "=== Session Service Node Security Hardening ==="
+          - "Target hosts: {{ ansible_play_hosts | length }}"
+          - "This playbook will:"
+          - "  - Update system packages"
+          - "  - Configure automatic security updates"
+          - "  - Harden SSH configuration"
+          - "  - Enable UFW firewall"
+          - "  - Install and configure fail2ban"
+      tags:
+        - always
+
+    - name: Verify admin user exists
+      command: id {{ admin_user }}
+      register: user_check
+      changed_when: false
+      failed_when: user_check.rc != 0
+      tags:
+        - always
+        - validation
+
+  roles:
+    - role: common
+      tags:
+        - common
+        - system
+
+    - role: security
+      tags:
+        - security
+        - hardening
+
+  post_tasks:
+    - name: Display security hardening completion message
+      debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║            Security Hardening Complete!                       ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "Security measures applied:"
+          - "  ✓ System packages updated"
+          - "  ✓ Automatic security updates enabled"
+          - "  ✓ SSH hardened (password auth disabled, root login disabled)"
+          - "  ✓ UFW firewall enabled with Session network ports"
+          - "  ✓ fail2ban installed and monitoring SSH"
+          - ""
+          - "IMPORTANT: Verify SSH access works before closing this session!"
+          - ""
+          - "Test command:"
+          - "  ssh {{ admin_user }}@{{ ansible_host }}"
+          - ""
+          - "Next steps:"
+          - "  1. Verify you can connect as {{ admin_user }}"
+          - "  2. Run session-node playbook to install Session software:"
+          - "     ansible-playbook playbooks/session-node.yml \\"
+          - "       -e 'l2_provider_url=...' \\"
+          - "       -e 'operator_eth_address=...'"
+          - ""
+          - "Or run the full site.yml playbook if you prefer to do both at once."
+          - ""
+      run_once: yes
+      tags:
+        - always

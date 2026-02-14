@@ -2,7 +2,7 @@
 variable "server_names" {
   description = "List of server names to create"
   type        = list(string)
-  default     = ["session-node-1"]
+  default     = ["node-1"]
 }
 
 variable "server_type" {

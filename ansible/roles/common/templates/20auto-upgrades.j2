@@ -1,0 +1,19 @@
+// Enable the update/upgrade script (0=disable)
+// Managed by Ansible - DO NOT EDIT MANUALLY
+// Role: common
+// Template: 20auto-upgrades.j2
+
+// Update the package list automatically
+APT::Periodic::Update-Package-Lists "{{ '1' if unattended_upgrades_update_package_lists else '0' }}";
+
+// Download upgradeable packages automatically
+APT::Periodic::Download-Upgradeable-Packages "{{ '1' if unattended_upgrades_download_upgradeable else '0' }}";
+
+// Install downloaded upgrades automatically
+APT::Periodic::Unattended-Upgrade "{{ '1' if unattended_upgrades_enabled else '0' }}";
+
+// Clean up the downloaded package archive automatically (daily)
+APT::Periodic::AutocleanInterval "7";
+
+// Remove unused dependencies automatically
+APT::Periodic::Verbose "1";

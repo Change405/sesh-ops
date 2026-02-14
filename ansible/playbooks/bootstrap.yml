@@ -1,0 +1,150 @@
+---
+# Bootstrap Playbook for Session Service Nodes
+# This playbook ensures the admin user exists on all servers.
+# It automatically detects which servers need bootstrapping and creates
+# the admin user only where needed.
+#
+# Purpose: Prepare servers for main deployment by ensuring admin user exists
+#
+# Usage: ansible-playbook playbooks/bootstrap.yml
+#
+# After bootstrap completes, run the main deployment:
+#   ansible-playbook playbooks/site.yml -e "l2_provider_url=..." -e "operator_eth_address=..."
+
+# ===========================================================================
+# PLAY 1: Connectivity Check - Determine which hosts need bootstrapping
+# ===========================================================================
+- name: Determine Connection Path
+  hosts: session_nodes
+  gather_facts: false
+  tasks:
+    - name: Try to connect as admin user
+      wait_for_connection:
+        timeout: 3
+      vars:
+        ansible_user: "{{ admin_user }}"
+      register: admin_user_check
+      ignore_errors: true
+      ignore_unreachable: true
+
+    - name: Classify hosts that need bootstrapping
+      add_host:
+        name: "{{ inventory_hostname }}"
+        groups: need_bootstrap
+        admin_user: "{{ admin_user }}"
+        admin_user_groups: "{{ admin_user_groups }}"
+        admin_user_shell: "{{ admin_user_shell }}"
+      when: admin_user_check is failed or admin_user_check is unreachable
+
+    - name: Display bootstrap status
+      debug:
+        msg: "{{ inventory_hostname }}: {{ 'Needs bootstrap (will connect as root)' if (admin_user_check is failed or admin_user_check is unreachable) else 'Admin user exists (normal operation)' }}"
+
+# ===========================================================================
+# PLAY 2: Bootstrap - Create admin user on new servers only
+# ===========================================================================
+- name: Bootstrap Admin User
+  hosts: need_bootstrap
+  gather_facts: false
+  remote_user: root
+  become: yes
+  tasks:
+    - name: Display bootstrap information
+      debug:
+        msg:
+          - "=== Bootstrapping {{ inventory_hostname }} ==="
+          - "Connected as: root"
+          - "Will create: {{ admin_user }}"
+
+    - name: Create admin user group
+      group:
+        name: "{{ admin_user }}"
+        state: present
+
+    - name: Create admin user
+      user:
+        name: "{{ admin_user }}"
+        groups: "{{ admin_user_groups }}"
+        shell: "{{ admin_user_shell }}"
+        password: "*"
+        create_home: yes
+        state: present
+        append: yes
+
+    - name: Set up SSH directory for admin user
+      file:
+        path: "/home/{{ admin_user }}/.ssh"
+        state: directory
+        owner: "{{ admin_user }}"
+        group: "{{ admin_user }}"
+        mode: "0700"
+
+    - name: Copy authorized_keys from root to admin user
+      copy:
+        src: /root/.ssh/authorized_keys
+        dest: "/home/{{ admin_user }}/.ssh/authorized_keys"
+        owner: "{{ admin_user }}"
+        group: "{{ admin_user }}"
+        mode: "0600"
+        remote_src: yes
+
+    - name: Configure passwordless sudo for admin user
+      copy:
+        content: "{{ admin_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        dest: "/etc/sudoers.d/{{ admin_user }}"
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"
+
+    - name: Test sudo access for admin user
+      command: sudo -u {{ admin_user }} sudo -n true
+      changed_when: false
+
+    - name: Display bootstrap completion
+      debug:
+        msg:
+          - "✓ Bootstrap complete for {{ inventory_hostname }}"
+          - "✓ Admin user '{{ admin_user }}' created"
+          - "✓ SSH key configured"
+          - "✓ Passwordless sudo enabled"
+
+# ===========================================================================
+# PLAY 3: Verification - Confirm all servers are ready for deployment
+# ===========================================================================
+- name: Verify Bootstrap Complete
+  hosts: session_nodes
+  remote_user: "{{ admin_user }}"
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Test connection as admin user
+      ping:
+
+    - name: Verify sudo access
+      command: whoami
+      changed_when: false
+      register: sudo_check
+
+    - name: Display bootstrap completion
+      debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════════════╗"
+          - "║              Bootstrap Complete!                               ║"
+          - "╚════════════════════════════════════════════════════════════════╝"
+          - ""
+          - "✓ Admin user '{{ admin_user }}' exists on all servers"
+          - "✓ SSH key-based authentication working"
+          - "✓ Sudo access confirmed"
+          - ""
+          - "Next Steps:"
+          - ""
+          - "1. Run the main deployment playbook:"
+          - "   ansible-playbook playbooks/site.yml \\"
+          - "     -e 'l2_provider_url=https://...' \\"
+          - "     -e 'operator_eth_address=0x...'"
+          - ""
+          - "2. Or run individual playbooks:"
+          - "   - Security hardening: ansible-playbook playbooks/security.yml"
+          - "   - Session node: ansible-playbook playbooks/session-node.yml -e '...'"
+          - ""
+      run_once: yes

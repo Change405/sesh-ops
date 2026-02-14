@@ -1,0 +1,215 @@
+---
+# Security role - SSH hardening, UFW firewall, and fail2ban
+# This role implements defense-in-depth security measures
+
+# ============================================================================
+# SSH Hardening
+# ============================================================================
+
+- name: Backup original sshd_config (once)
+  copy:
+    src: /etc/ssh/sshd_config
+    dest: /etc/ssh/sshd_config.backup
+    remote_src: yes
+    mode: "0600"
+    force: no
+  tags:
+    - security
+    - ssh
+
+- name: Deploy hardened sshd_config
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    backup: yes
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: restart sshd
+  tags:
+    - security
+    - ssh
+
+- name: Verify admin user can authenticate via SSH
+  command: >
+    ssh -i {{ ansible_ssh_private_key_file | default(ansible_private_key_file) }}
+        -o StrictHostKeyChecking=no
+        -o BatchMode=yes
+        -o ConnectTimeout=10
+        -p {{ ssh_port }}
+        {{ admin_user }}@{{ ansible_host }}
+        "echo success"
+  delegate_to: localhost
+  become: no
+  register: ssh_auth_test
+  failed_when: ssh_auth_test.rc != 0 or 'success' not in ssh_auth_test.stdout
+  changed_when: false
+  tags:
+    - security
+    - ssh
+    - validation
+
+# ============================================================================
+# UFW Firewall Configuration
+# ============================================================================
+
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+  tags:
+    - security
+    - firewall
+
+- name: Set UFW default incoming policy
+  ufw:
+    direction: incoming
+    policy: "{{ ufw_default_incoming_policy }}"
+  tags:
+    - security
+    - firewall
+
+- name: Set UFW default outgoing policy
+  ufw:
+    direction: outgoing
+    policy: "{{ ufw_default_outgoing_policy }}"
+  tags:
+    - security
+    - firewall
+
+- name: Set UFW default forward policy
+  ufw:
+    direction: routed
+    policy: "{{ ufw_default_forward_policy }}"
+  tags:
+    - security
+    - firewall
+
+- name: Configure UFW rules
+  ufw:
+    rule: "{{ item.rule }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment | default(omit) }}"
+  loop: "{{ ufw_rules }}"
+  tags:
+    - security
+    - firewall
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+  tags:
+    - security
+    - firewall
+
+- name: Ensure UFW is started and enabled
+  systemd:
+    name: ufw
+    state: started
+    enabled: yes
+  tags:
+    - security
+    - firewall
+
+# ============================================================================
+# fail2ban Configuration
+# ============================================================================
+
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+    update_cache: yes
+  tags:
+    - security
+    - fail2ban
+
+- name: Create fail2ban local configuration directory
+  file:
+    path: /etc/fail2ban/jail.d
+    state: directory
+    mode: "0755"
+  tags:
+    - security
+    - fail2ban
+
+- name: Configure fail2ban jail for SSH
+  copy:
+    dest: /etc/fail2ban/jail.d/sshd.local
+    content: |
+      [sshd]
+      enabled = true
+      port = {{ ssh_port }}
+      filter = sshd
+      logpath = /var/log/auth.log
+      maxretry = {{ fail2ban_maxretry }}
+      findtime = {{ fail2ban_findtime }}
+      bantime = {{ fail2ban_bantime }}
+      action = {{ fail2ban_action }}
+    mode: "0644"
+  notify: restart fail2ban
+  tags:
+    - security
+    - fail2ban
+
+- name: Ensure fail2ban is started and enabled
+  systemd:
+    name: fail2ban
+    state: started
+    enabled: yes
+  tags:
+    - security
+    - fail2ban
+
+# ============================================================================
+# Security Validation
+# ============================================================================
+
+- name: Verify SSH service is running
+  systemd:
+    name: ssh
+    state: started
+  tags:
+    - security
+    - validation
+
+- name: Verify UFW is active
+  command: ufw status
+  register: ufw_status
+  changed_when: false
+  failed_when: "'Status: active' not in ufw_status.stdout"
+  tags:
+    - security
+    - validation
+
+- name: Verify fail2ban is running
+  systemd:
+    name: fail2ban
+    state: started
+  tags:
+    - security
+    - validation
+
+- name: Display security hardening status
+  debug:
+    msg:
+      - "=== Security Hardening Complete ==="
+      - "✓ SSH hardening applied (password auth disabled, root login disabled)"
+      - "✓ UFW firewall enabled with rules"
+      - "✓ fail2ban installed and monitoring SSH"
+      - ""
+      - "IMPORTANT: Verify you can still connect via SSH as {{ admin_user }}"
+      - "  Test command: ssh {{ admin_user }}@{{ ansible_host }}"
+      - ""
+      - "Security settings:"
+      - "  - SSH port: {{ ssh_port }}"
+      - "  - Password authentication: disabled"
+      - "  - Root login: disabled"
+      - "  - SSH idle timeout: {{ ssh_client_alive_interval }}s"
+      - "  - fail2ban max retries: {{ fail2ban_maxretry }}"
+      - "  - fail2ban ban time: {{ fail2ban_bantime }}s"
+  tags:
+    - security

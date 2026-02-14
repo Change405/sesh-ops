@@ -1,0 +1,190 @@
+---
+# Session Node role - Installation and configuration of Session Service Node
+# This role installs the session-service-node package and configures oxen daemon
+
+# ============================================================================
+# Repository Setup
+# ============================================================================
+
+- name: Create keyrings directory
+  file:
+    path: /usr/share/keyrings
+    state: directory
+    mode: "0755"
+  tags:
+    - session
+    - repository
+
+- name: Download Session Foundation GPG key
+  get_url:
+    url: "{{ session_gpg_key_url }}"
+    dest: "{{ session_gpg_key_path }}"
+    mode: "0644"
+    force: yes
+  tags:
+    - session
+    - repository
+
+- name: Add Session APT repository
+  deb822_repository:
+    name: session
+    types: [deb]
+    uris: "{{ session_repo_url }}"
+    suites: "{{ session_repo_suite }}"
+    components: "{{ session_repo_component }}"
+    signed_by: "{{ session_gpg_key_path }}"
+    enabled: yes
+  tags:
+    - session
+    - repository
+
+- name: Update APT cache after adding repository
+  apt:
+    update_cache: yes
+  tags:
+    - session
+    - repository
+
+# ============================================================================
+# Package Installation
+# ============================================================================
+
+- name: Pre-seed debconf - public IP address
+  debconf:
+    name: session-service-node
+    question: session-service-node/ip-address
+    value: "{{ node_public_ip }}"
+    vtype: string
+  tags:
+    - session
+    - packages
+
+- name: Pre-seed debconf - L2 provider URL
+  debconf:
+    name: session-service-node
+    question: session-service-node/l2-provider
+    value: "{{ l2_provider_url }}"
+    vtype: string
+  tags:
+    - session
+    - packages
+
+- name: Install session-service-node package
+  apt:
+    name: "{{ oxen_package }}"
+    state: present
+    update_cache: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  tags:
+    - session
+    - packages
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+- name: Ensure oxen config directory exists
+  file:
+    path: "{{ oxen_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - session
+    - configuration
+
+- name: Ensure oxen data directory exists
+  file:
+    path: "{{ oxen_data_dir }}"
+    state: directory
+    owner: _loki
+    group: _loki
+    mode: "0755"
+  tags:
+    - session
+    - configuration
+
+- name: Deploy oxen.conf configuration
+  template:
+    src: oxen.conf.j2
+    dest: "{{ oxen_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: yes
+  notify: restart oxen-node
+  tags:
+    - session
+    - configuration
+
+# ============================================================================
+# Service Management
+# ============================================================================
+
+- name: Enable oxen-node service
+  systemd:
+    name: "{{ oxen_service_name }}"
+    enabled: yes
+    daemon_reload: yes
+  tags:
+    - session
+    - service
+
+- name: Start oxen-node service
+  systemd:
+    name: "{{ oxen_service_name }}"
+    state: started
+  tags:
+    - session
+    - service
+
+- name: Wait for oxen-node service to be active
+  systemd:
+    name: "{{ oxen_service_name }}"
+    state: started
+  register: oxen_service_status
+  until: oxen_service_status.status.ActiveState == "active"
+  retries: 5
+  delay: 10
+  tags:
+    - session
+    - service
+    - validation
+
+# ============================================================================
+# Validation
+# ============================================================================
+
+- name: Get oxen-node service status
+  systemd:
+    name: "{{ oxen_service_name }}"
+  register: service_status
+  tags:
+    - session
+    - validation
+
+- name: Display Session node installation status
+  debug:
+    msg:
+      - "=== Session Service Node Installation Complete ==="
+      - "✓ Session repository added"
+      - "✓ session-service-node package installed"
+      - "✓ oxen.conf configured with:"
+      - "    - Service node mode: enabled"
+      - "    - Public IP: {{ node_public_ip }}"
+      - "    - L2 Provider: {{ l2_provider_url }}"
+      - "✓ oxen-node service running"
+      - ""
+      - "Service status: {{ service_status.status.ActiveState }}"
+      - "Logs: sudo journalctl -u {{ oxen_service_name }} -f"
+      - ""
+      - "Next steps:"
+      - "  1. SSH to the node: ssh {{ admin_user }}@{{ ansible_host }}"
+      - "  2. Register the node: sudo oxend register {{ operator_eth_address }}"
+      - "  3. Complete stake at: https://stake.getsession.org/"
+      - "  4. Check status: sudo oxend status"
+      - "  5. Monitor logs: sudo journalctl -u {{ oxen_service_name }} -f"
+  tags:
+    - session

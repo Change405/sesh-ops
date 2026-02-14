@@ -1,0 +1,14 @@
+---
+# Session Node role handlers
+
+- name: restart oxen-node
+  systemd:
+    name: "{{ oxen_service_name }}"
+    state: restarted
+  listen: restart oxen-node
+
+- name: reload oxen-node
+  systemd:
+    name: "{{ oxen_service_name }}"
+    state: reloaded
+  listen: reload oxen-node

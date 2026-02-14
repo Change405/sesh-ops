@@ -1,0 +1,136 @@
+# Hardened SSH Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Role: security
+# Template: sshd_config.j2
+
+# ============================================================================
+# Network and Protocol Settings
+# ============================================================================
+Port {{ ssh_port }}
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+Protocol 2
+
+# ============================================================================
+# Cryptography Settings
+# ============================================================================
+# Host keys
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Key exchange algorithms (modern, secure algorithms only)
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
+
+# Ciphers (modern, secure ciphers only)
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+
+# MACs (message authentication codes)
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+# ============================================================================
+# Authentication Settings
+# ============================================================================
+# Public key authentication (ENABLED)
+PubkeyAuthentication {{ ssh_pubkey_authentication }}
+
+# Password authentication (DISABLED for security)
+PasswordAuthentication {{ ssh_password_authentication }}
+PermitEmptyPasswords {{ ssh_permit_empty_passwords }}
+
+# Challenge-response authentication (DISABLED)
+KbdInteractiveAuthentication {{ ssh_challenge_response_authentication }}
+ChallengeResponseAuthentication {{ ssh_challenge_response_authentication }}
+
+# GSSAPI authentication (DISABLED)
+GSSAPIAuthentication {{ ssh_gss_api_authentication }}
+
+# Root login (DISABLED for security)
+PermitRootLogin {{ ssh_permit_root_login }}
+
+# Only allow specific authentication methods
+AuthenticationMethods publickey
+
+# ============================================================================
+# Access Control
+# ============================================================================
+# Maximum authentication attempts
+MaxAuthTries 3
+
+# Maximum concurrent unauthenticated connections
+MaxStartups 10:30:60
+
+# Login grace time (time to authenticate)
+LoginGraceTime 30s
+
+# ============================================================================
+# Session Settings
+# ============================================================================
+# Client alive interval (detect dead connections)
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+# TCP keep alive
+TCPKeepAlive yes
+
+# Maximum sessions per connection
+MaxSessions 10
+
+# ============================================================================
+# Security Features
+# ============================================================================
+# Disable X11 forwarding
+X11Forwarding {{ ssh_x11_forwarding }}
+
+# Disable agent forwarding (can be enabled per-user if needed)
+AllowAgentForwarding no
+
+# Disable TCP forwarding (can be enabled per-user if needed)
+AllowTcpForwarding no
+
+# Disable stream local forwarding
+AllowStreamLocalForwarding no
+
+# Disable gateway ports
+GatewayPorts no
+
+# Enable strict mode (check file permissions)
+StrictModes yes
+
+# ============================================================================
+# Logging
+# ============================================================================
+# Logging level
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# ============================================================================
+# Environment and Subsystems
+# ============================================================================
+# Print message of the day
+PrintMotd no
+
+# Print last log
+PrintLastLog yes
+
+# Allow client to pass locale environment variables
+AcceptEnv LANG LC_*
+
+# SFTP subsystem
+Subsystem sftp /usr/lib/openssh/sftp-server
+
+# ============================================================================
+# Banner (optional)
+# ============================================================================
+# Uncomment to display a banner before authentication
+# Banner /etc/ssh/banner
+
+# ============================================================================
+# Per-User Overrides
+# ============================================================================
+# Allow specific users/groups to override some settings if needed
+# Example:
+# Match User ansible
+#   AllowTcpForwarding yes

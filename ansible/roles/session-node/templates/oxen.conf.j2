@@ -1,0 +1,62 @@
+# Oxen Service Node Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Role: session-node
+# Template: oxen.conf.j2
+
+# ============================================================================
+# Data and Logging
+# ============================================================================
+# Directory for blockchain data and state
+data-dir={{ oxen_data_dir }}
+
+# Log level (0=minimal, 4=trace)
+log-level=1
+
+# ============================================================================
+# Service Node Configuration
+# ============================================================================
+# Enable service node mode
+service-node={{ oxen_service_node }}
+
+# Public IP address for this service node
+service-node-public-ip={{ node_public_ip }}
+
+# ============================================================================
+# Layer 2 Network Configuration
+# ============================================================================
+# Arbitrum One RPC provider endpoint
+l2-provider={{ l2_provider_url }}
+
+# ============================================================================
+# Network Settings
+# ============================================================================
+# P2P bind port (default: 22020)
+# p2p-bind-port=22020
+
+# RPC bind address (default: 127.0.0.1)
+# rpc-bind-ip=127.0.0.1
+
+# RPC bind port (default: 22022)
+# rpc-bind-port=22022
+
+# ZMQ RPC bind port (default: 22021)
+# zmq-rpc-bind-port=22021
+
+# QUIC port (default: 22020)
+# quic-port=22020
+
+# ============================================================================
+# Performance Tuning
+# ============================================================================
+# Number of threads for various operations (defaults are usually optimal)
+# db-sync-mode=fast
+# block-sync-size=20
+
+# ============================================================================
+# Maintenance
+# ============================================================================
+# Prune blockchain (keep last N blocks, 0=keep all)
+# prune-blockchain=0
+
+# Fast block sync
+# fast-block-sync=1

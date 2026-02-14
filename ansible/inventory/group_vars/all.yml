@@ -1,0 +1,175 @@
+---
+# Group variables for all Session Service Nodes
+# These variables are applied to all hosts in the inventory
+
+# ============================================================================
+# Admin User Configuration
+# ============================================================================
+admin_user: session_change
+admin_user_groups:
+  - sudo
+admin_user_shell: /bin/bash
+
+# ============================================================================
+# SSH Hardening Configuration
+# ============================================================================
+ssh_port: 22
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_permit_root_login: "no"
+ssh_permit_empty_passwords: "no"
+ssh_challenge_response_authentication: "no"
+ssh_gss_api_authentication: "no"
+ssh_x11_forwarding: "no"
+
+# SSH idle timeout (5 minutes)
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+
+# ============================================================================
+# fail2ban Configuration
+# ============================================================================
+fail2ban_bantime: 3600           # 1 hour
+fail2ban_findtime: 600            # 10 minutes
+fail2ban_maxretry: 3              # 3 failed attempts
+fail2ban_destemail: root@localhost
+fail2ban_sender: fail2ban@localhost
+fail2ban_action: action_          # Ban only, no email
+
+# ============================================================================
+# UFW Firewall Configuration
+# ============================================================================
+ufw_default_incoming_policy: deny
+ufw_default_outgoing_policy: allow
+ufw_default_forward_policy: deny
+
+# Firewall rules (mirroring cloud firewall)
+ufw_rules:
+  # SSH access
+  - rule: allow
+    port: 22
+    proto: tcp
+    comment: "SSH"
+
+  # Session network ports (TCP)
+  - rule: allow
+    port: 22020
+    proto: tcp
+    comment: "Session QUIC"
+
+  - rule: allow
+    port: 22021
+    proto: tcp
+    comment: "Session ZMQ RPC"
+
+  - rule: allow
+    port: 22022
+    proto: tcp
+    comment: "Session HTTP RPC"
+
+  - rule: allow
+    port: 22025
+    proto: tcp
+    comment: "Session Service Node"
+
+  # Session network ports (UDP)
+  - rule: allow
+    port: 22020
+    proto: udp
+    comment: "Session QUIC"
+
+  - rule: allow
+    port: 1090
+    proto: udp
+    comment: "Session Oxenmq Storage"
+
+  - rule: allow
+    port: 1190
+    proto: udp
+    comment: "Session Lokinet"
+
+# ============================================================================
+# Session Repository Configuration
+# ============================================================================
+session_gpg_key_url: "https://deb.oxen.io/pub.gpg"
+session_gpg_key_path: "/usr/share/keyrings/session-foundation.gpg"
+session_repo_url: "https://deb.oxen.io"
+session_repo_suite: "noble"  # Ubuntu 24.04 codename
+session_repo_component: "main"
+
+# ============================================================================
+# Oxen Service Node Configuration
+# ============================================================================
+oxen_package: session-service-node
+oxen_service_name: oxen-node
+oxen_config_dir: /etc/oxen
+oxen_config_file: "{{ oxen_config_dir }}/oxen.conf"
+oxen_data_dir: /var/lib/oxen
+oxen_log_file: /var/log/oxen.log
+
+# Service node settings
+oxen_service_node: 1
+
+# ============================================================================
+# System Configuration
+# ============================================================================
+# Essential packages to install
+essential_packages:
+  - curl
+  - gnupg
+  - apt-transport-https
+  - ca-certificates
+  - software-properties-common
+  - vim
+  - htop
+  - net-tools
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - apt-listchanges
+
+# Timezone
+system_timezone: UTC
+
+# ============================================================================
+# Automatic Updates Configuration
+# ============================================================================
+# Enable automatic security updates
+unattended_upgrades_enabled: true
+
+# Origins to allow automatic updates from
+unattended_upgrades_origins:
+  - "${distro_id}:${distro_codename}-security"
+  # Uncomment to enable all updates (not recommended for production)
+  # - "${distro_id}:${distro_codename}-updates"
+
+# Automatic reboot configuration
+unattended_upgrades_automatic_reboot: true
+unattended_upgrades_automatic_reboot_time: "08:00"  # 3 AM EST (UTC-5)
+
+# Remove unused dependencies automatically
+unattended_upgrades_autoremove: true
+unattended_upgrades_autoremove_unused_kernels: true
+
+# Email notifications (optional - leave empty to disable)
+unattended_upgrades_mail: ""
+unattended_upgrades_mail_only_on_error: true
+
+# Update package lists automatically
+unattended_upgrades_update_package_lists: true
+
+# Download upgradeable packages automatically
+unattended_upgrades_download_upgradeable: true
+
+# ============================================================================
+# Operator Configuration
+# ============================================================================
+# Operator wallet address
+operator_eth_address: "0xB0dbd4F71D3635D3F3bd1c39d4f87bd0905Fa392"
+
+# ============================================================================
+# Variables that MUST be provided at runtime (-e flag)
+# ============================================================================
+# l2_provider_url: "https://your-rpc-provider.example/v1/your-key"
+
+# These are validated in playbooks and will cause failure if not provided
