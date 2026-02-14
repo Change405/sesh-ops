@@ -7,101 +7,86 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This repository manages infrastructure and configuration for Session Service Nodes on the Arbitrum One network. Session is a decentralized, peer-to-peer network for secure messaging where anyone can run a node and participate in the network.
 
 **Tech Stack:**
-- **Terraform**: Hardware provisioning and infrastructure as code
+- **Terraform**: Hardware provisioning and infrastructure as code (Hetzner Cloud)
 - **Ansible**: Configuration management for secure, idempotent node setup
 - **Target Network**: Arbitrum One (Ethereum Layer 2)
-
-## Repository Structure
-
-```
-terraform/  - Infrastructure provisioning (cloud resources, networking, compute)
-ansible/    - Node configuration and deployment playbooks
-scripts/    - Helper scripts for common operations
-```
 
 ## Terraform Infrastructure
 
 **Cloud Provider**: Hetzner Cloud
 **State Backend**: S3 (`matts-terraform-states` bucket in us-east-2)
-**State Locking**: S3-native locking (Terraform 1.11+)
+**State Locking**: S3-native locking (Terraform 1.11+, no DynamoDB needed)
 
-**Key Details**:
-- Uses S3-native state locking, which eliminates the need for DynamoDB
-- Lock files (`.tflock`) are created alongside state files in S3
-- Hetzner Cloud API token must be retrieved via 1Password CLI (never stored in files)
-- Backend configuration is hardcoded in `backend.tf` (Terraform limitation)
-
-## Common Commands
-
-### Terraform Operations
-
-**Prerequisites**: Before running Terraform commands, export the Hetzner Cloud token:
+**Authentication** (required before any Terraform command):
 ```bash
-# Retrieve token from 1Password (requires biometric auth)
-export HCLOUD_TOKEN=$(op read "op://[vault]/[item]/[field]")
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_CREDENTIAL_EXPIRATION
+aws login
+eval $(aws configure export-credentials --format env)
+export HCLOUD_TOKEN=$(op read "op://Private/Hetzner/API Key")
 ```
 
-**Common commands**:
+**Common commands:**
 ```bash
-# Initialize Terraform (run first or after config changes)
-cd terraform && terraform init
-
-# Plan infrastructure changes (dry-run)
+cd terraform
+terraform init    # first time or after config changes
 terraform plan
-
-# Apply infrastructure changes
 terraform apply
-
-# Destroy infrastructure
 terraform destroy
-
-# Format Terraform files
 terraform fmt -recursive
-
-# Validate configuration
-terraform validate
 ```
 
-For detailed Terraform operations, troubleshooting, and state management, see `terraform/README.md`.
+## Ansible Architecture
 
-### Ansible Operations
+The playbook flow is: `site.yml` → imports `bootstrap.yml` → runs roles: `common`, `security`, `session-node`.
+
+**Bootstrap pattern** (3-play adaptive):
+1. Tests connection as `session_change` — if it fails, adds host to `need_bootstrap`
+2. Connects as root, creates `session_change` user with `password: "*"` (not `!!`) and copies SSH keys
+3. Verifies connection as `session_change`
+
+**Critical details:**
+- Admin user: `session_change` (set in `inventory/group_vars/all.yml` and `ansible.cfg`)
+- `group_vars` must live at `ansible/inventory/group_vars/` (not `ansible/group_vars/`) to load correctly
+- Ubuntu 24.04 SSH service name is `ssh` not `sshd`
+- `password: "*"` in user creation is intentional — `!!` (default) causes PAM to block SSH key auth after sshd config hardens
+- oxend runs as `_loki` user — data dir `/var/lib/oxen` must be owned by `_loki:_loki`
+- oxend logs to journald only (not a file) — use `journalctl -u oxen-node -f`
+- `session-service-node` package requires debconf pre-seeding before install (questions: `session-service-node/ip-address` and `session-service-node/l2-provider`)
+
+**Run the full deployment:**
 ```bash
-# Run playbook (replace <playbook> with actual playbook name)
-cd ansible && ansible-playbook <playbook>.yml
+cd ansible
+./scripts/generate-inventory.sh  # run after every terraform apply
+ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/DRPC/API URL')"
+```
 
-# Check playbook syntax
-ansible-playbook <playbook>.yml --syntax-check
-
-# Dry-run (check mode)
-ansible-playbook <playbook>.yml --check
-
-# Run against specific hosts
-ansible-playbook <playbook>.yml --limit <host-pattern>
-
-# List all hosts
+**Other useful commands:**
+```bash
+ansible-playbook playbooks/site.yml --syntax-check
+ansible-playbook playbooks/site.yml --check
+ansible-playbook playbooks/site.yml --limit node-1
 ansible-inventory --list
 ```
 
 ## Security Considerations
 
-**Never commit sensitive data:**
-- Terraform `.tfvars` files (use `.tfvars.example` templates instead)
-- Ansible vault passwords
-- Private keys or credentials
-- Host-specific inventory files
+- SSH private key: `~/.ssh/session_node_key` (gitignored)
+- Generated inventory `ansible/inventory/hosts.local.yml` is gitignored
+- Hetzner token and RPC URL are never written to disk — environment/1Password only
+- `pam_faillock` on Ubuntu 24.04 will lock accounts on brute force attempts — `password: "*"` in bootstrap prevents SSH key auth from being blocked by account lock status
 
-All sensitive files are already configured in `.gitignore`.
+## Node Operations
 
-**Credential Management:**
-- Hetzner Cloud API token is stored in 1Password and retrieved via CLI
-- Requires biometric authentication for each retrieval
-- Token is never written to disk (environment variable only)
-- Use: `export HCLOUD_TOKEN=$(op read "op://[vault]/[item]/[field]")`
+```bash
+# Check node status
+sudo oxend status          # shows sync status, registration, pings
+sudo oxend print_sn_status # detailed service node status
 
-## Workflow
+# Monitor logs
+sudo journalctl -u oxen-node -f
 
-1. **Provision infrastructure**: Use Terraform to create compute resources, networking, and storage
-2. **Configure nodes**: Use Ansible to deploy Session node software and configure services
-3. **Maintain idempotency**: All configuration should be repeatable and declarative
+# Register node (after full sync)
+sudo oxend register 0xYourEthAddress
+```
 
-Changes to infrastructure should be reviewed carefully as they affect running nodes on the live network.
+Staking requires 25,000 SESH per node. Complete stake at https://stake.getsession.org/ within 9-12 minutes of running the register command.
