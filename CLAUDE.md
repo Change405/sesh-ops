@@ -57,7 +57,7 @@ The playbook flow is: `site.yml` → imports `bootstrap.yml` → runs roles: `co
 ```bash
 cd ansible
 ./scripts/generate-inventory.sh  # run after every terraform apply
-ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/DRPC/API URL')"
+ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/Alchemy/App URL')"
 ```
 
 **Other useful commands:**

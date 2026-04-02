@@ -53,7 +53,7 @@ cd ../ansible
 ./scripts/generate-inventory.sh
 
 # 4. Deploy and configure nodes
-ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/DRPC/API URL')"
+ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/Alchemy/App URL')"
 ```
 
 ## Rebuild / Re-deploy
@@ -73,7 +73,7 @@ terraform apply
 # Regenerate inventory and redeploy
 cd ../ansible
 ./scripts/generate-inventory.sh
-ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/DRPC/API URL')"
+ansible-playbook playbooks/site.yml -e "l2_provider_url=$(op read 'op://Private/Alchemy/App URL')"
 ```
 
 ## Node Registration & Staking
